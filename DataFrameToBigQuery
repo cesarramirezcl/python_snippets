@@ -68,7 +68,6 @@ class DataFrameToBigQuery:
             dataframe (pd.DataFrame): The pandas DataFrame to append.
         """
         dataframe = self.adjust_dataframe_columns(dataframe)
-        dataframe = self.modify_data_types_and_rename_columns(dataframe)
         job = self.client.load_table_from_dataframe(dataframe, self.table_ref, job_config=bigquery.LoadJobConfig(write_disposition="WRITE_APPEND"))
         job.result()  # Espera a que la carga se complete
         logging.info(f"Se han cargado {job.output_rows} filas a {self.dataset_id}.{self.table_id}.")
