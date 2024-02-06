@@ -5,7 +5,30 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
 
 class DataFrameToBigQuery:
+    """
+    A utility class for appending data from a pandas DataFrame to a Google BigQuery table.
+
+    Attributes:
+        project_id (str): Google Cloud project ID.
+        dataset_id (str): BigQuery dataset ID.
+        table_id (str): BigQuery table ID.
+        client (bigquery.Client): BigQuery client for interacting with the API.
+        table_ref (bigquery.TableReference): Reference to the BigQuery table.
+        table (bigquery.Table): BigQuery table object.
+
+    Methods:
+        adjust_dataframe_columns(dataframe): Adjusts the columns of the provided DataFrame to match the schema of the BigQuery table.
+        append_to_table(dataframe): Appends the data from the provided DataFrame to the BigQuery table.
+    """
     def __init__(self, project_id, dataset_id, table_id):
+        """
+        Initializes the DataFrameToBigQuery class with the specified project, dataset, and table IDs.
+
+        Args:
+            project_id (str): Google Cloud project ID.
+            dataset_id (str): BigQuery dataset ID.
+            table_id (str): BigQuery table ID.
+        """
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
@@ -15,31 +38,35 @@ class DataFrameToBigQuery:
 
 
     def adjust_dataframe_columns(self, dataframe):
+        """
+        Adjusts the columns of the provided DataFrame to match the schema of the BigQuery table.
+        It truncates extra columns and renames the DataFrame's columns to match the BigQuery table's schema.
+
+        Args:
+            dataframe (pd.DataFrame): The pandas DataFrame to adjust.
+
+        Returns:
+            pd.DataFrame: The adjusted DataFrame.
+        """
         bq_fields_count = len(self.table.schema)
         if len(dataframe.columns) > bq_fields_count:
             dataframe = dataframe.iloc[:, :bq_fields_count]
             logging.warning(f"El DataFrame se ha ajustado a {bq_fields_count} columnas para coincidir con la tabla de destino en BigQuery.")
+        schema = self.table.schema
+        column_mapping = {dataframe.columns[i]: field.name for i, field in enumerate(schema) if
+                          i < len(dataframe.columns)}
+        dataframe = dataframe.rename(columns=column_mapping)
         return dataframe
 
 
-    def modify_data_types_and_rename_columns(self, dataframe):
-        schema = self.table.schema
-        column_mapping = {dataframe.columns[i]: field.name for i, field in enumerate(schema) if i < len(dataframe.columns)}
-        modified_df = dataframe.rename(columns=column_mapping)
-        for field in schema:
-            if field.name in modified_df.columns:
-                if field.field_type == 'STRING':
-                    modified_df[field.name] = modified_df[field.name].astype(str)
-                elif field.field_type == 'INTEGER':
-                    modified_df[field.name] = pd.to_numeric(modified_df[field.name], errors='coerce').fillna(0).astype(int)
-                elif field.field_type == 'FLOAT':
-                    modified_df[field.name] = pd.to_numeric(modified_df[field.name], errors='coerce').fillna(0.0)
-                elif field.field_type == 'BOOLEAN':
-                    modified_df[field.name] = modified_df[field.name].astype(bool)
-        return modified_df
-
-
     def append_to_table(self, dataframe):
+        """
+        Appends the data from the provided DataFrame to the BigQuery table.
+        It first adjusts the DataFrame columns to match the BigQuery table schema and then performs the append operation.
+
+        Args:
+            dataframe (pd.DataFrame): The pandas DataFrame to append.
+        """
         dataframe = self.adjust_dataframe_columns(dataframe)
         dataframe = self.modify_data_types_and_rename_columns(dataframe)
         job = self.client.load_table_from_dataframe(dataframe, self.table_ref, job_config=bigquery.LoadJobConfig(write_disposition="WRITE_APPEND"))
