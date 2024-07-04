@@ -49,9 +49,10 @@ class DataFrameToBigQuery:
             pd.DataFrame: The adjusted DataFrame.
         """
         bq_fields_count = len(self.table.schema)
-        if len(dataframe.columns) > bq_fields_count:
+        df_num_col = len(dataframe.columns)
+        if df_num_col > bq_fields_count:
             dataframe = dataframe.iloc[:, :bq_fields_count]
-            logging.warning(f"El DataFrame se ha ajustado a {bq_fields_count} columnas para coincidir con la tabla de destino en BigQuery.")
+            logging.warning(f"El DataFrame se ha ajustado de {df_num_col} a {bq_fields_count} columnas para coincidir con la tabla de destino en BigQuery.")
         schema = self.table.schema
         column_mapping = {dataframe.columns[i]: field.name for i, field in enumerate(schema) if
                           i < len(dataframe.columns)}
